@@ -1,0 +1,113 @@
+version: "3.9"
+
+# ── NexusAI — Local Development Stack ──
+# Run everything with: docker-compose up --build
+
+networks:
+  nexusai-network:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:
+
+services:
+
+  # ── API GATEWAY ──
+  gateway:
+    build: ./services/gateway-service
+    container_name: nexusai-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - BRAIN_TUMOR_URL=http://brain-tumor-service:8001
+      - RETINA_URL=http://retina-service:8002
+    depends_on:
+      - brain-tumor-service
+      - retina-service
+    networks:
+      - nexusai-network
+    restart: unless-stopped
+    labels:
+      - "com.nexusai.service=gateway"
+      - "com.nexusai.version=1.0.0"
+
+  # ── BRAIN TUMOR MICROSERVICE ──
+  brain-tumor-service:
+    build: ./services/brain-tumor-service
+    container_name: nexusai-brain-tumor
+    ports:
+      - "8001:8001"
+    environment:
+      - MODEL_PATH=/app/model/brain_tumor_model.h5
+    volumes:
+      - ./models/brain_tumor:/app/model:ro
+    networks:
+      - nexusai-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "1.0"
+    labels:
+      - "com.nexusai.service=brain-tumor"
+
+  # ── RETINASCAN MICROSERVICE ──
+  retina-service:
+    build: ./services/retina-service
+    container_name: nexusai-retina
+    ports:
+      - "8002:8002"
+    environment:
+      - MODEL_PATH=/app/model/retina_model.h5
+    volumes:
+      - ./models/retina:/app/model:ro
+    networks:
+      - nexusai-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "1.0"
+    labels:
+      - "com.nexusai.service=retina"
+
+  # ── PROMETHEUS ──
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: nexusai-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=7d"
+    networks:
+      - nexusai-network
+    restart: unless-stopped
+
+  # ── GRAFANA ──
+  grafana:
+    image: grafana/grafana:latest
+    container_name: nexusai-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=nexusai2025
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+    depends_on:
+      - prometheus
+    networks:
+      - nexusai-network
+    restart: unless-stopped
+
+  # ── FRONTEND DASHBOARD ──
+ 
