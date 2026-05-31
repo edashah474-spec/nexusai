@@ -157,4 +157,4 @@ Grafana dashboards included for:
 
 **Safa Hundekar** — AI Engineering Undergraduate, KLE Technological University  
 GitHub: [edashah474-spec](https://github.com/edashah474-spec)  
-Portfolio: [safahu.dev](https://safahu.dev)
+Portfolio: [safahu.dev](https://safa1-portfolio1.vercel.app/)
