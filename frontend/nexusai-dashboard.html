@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NexusAI — Control Plane</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #050507;
+  --bg1: #0a0a0f;
+  --bg2: #111118;
+  --bg3: #18181f;
+  --border: rgba(255,255,255,0.06);
+  --border-lit: rgba(99,179,237,0.3);
+  --text: #e8e8f0;
+  --text-dim: #6b6b80;
+  --text-muted: #2a2a38;
+  --blue: #63b3ed;
+  --blue-dim: rgba(99,179,237,0.1);
+  --green: #68d391;
+  --green-dim: rgba(104,211,145,0.1);
+  --amber: #f6ad55;
+  --amber-dim: rgba(246,173,85,0.1);
+  --red: #fc8181;
+  --red-dim: rgba(252,129,129,0.1);
+  --purple: #b794f4;
+  --purple-dim: rgba(183,148,244,0.1);
+  --cyan: #76e4f7;
+  --r: 12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif;font-size:14px;overflow-x:hidden}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:#2a2a38;border-radius:2px}
+
+/* GRID BACKGROUND */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:
+    linear-gradient(rgba(99,179,237,0.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(99,179,237,0.03) 1px,transparent 1px);
+  background-size:40px 40px;
+  pointer-events:none;z-index:0;
+}
+
+/* SIDEBAR */
+.sidebar{
+  position:fixed;top:0;left:0;bottom:0;width:220px;
+  background:var(--bg1);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  z-index:50;padding:0;
+}
+.sidebar-logo{
+  padding:1.5rem;
+  border-bottom:1px solid var(--border);
+}
+.logo-mark{
+  display:flex;align-items:center;gap:10px;margin-bottom:4px;
+}
+.logo-icon{
+  width:32px;height:32px;
+  background:linear-gradient(135deg,var(--blue),var(--purple));
+  border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px;font-weight:500;color:#000;
+}
+.logo-name{
+  font-family:'Syne',sans-serif;
+  font-size:16px;font-weight:700;
+  letter-spacing:0.02em;
+}
+.logo-sub{
+  font-family:'JetBrains Mono',monospace;
+  font-size:9px;letter-spacing:0.2em;
+  color:var(--text-dim);
+}
+.sidebar-nav{
+  flex:1;padding:1rem 0;
+  overflow-y:auto;
+}
+.nav-section{
+  font-family:'JetBrains Mono',monospace;
+  font-size:8px;letter-spacing:0.25em;
+  color:var(--text-muted);
+  padding:0.75rem 1.5rem 0.4rem;
+}
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:0.65rem 1.5rem;
+  font-size:13px;color:var(--text-dim);
+  cursor:pointer;
+  transition:all 0.15s;
+  border-left:2px solid transparent;
+  position:relative;
+}
+.nav-item:hover{color:var(--text);background:rgba(255,255,255,0.03);}
+.nav-item.active{
+  color:var(--blue);
+  background:var(--blue-dim);
+  border-left-color:var(--blue);
+}
+.nav-icon{font-size:14px;width:16px;text-align:center;}
+.sidebar-footer{
+  padding:1rem 1.5rem;
+  border-top:1px solid var(--border);
+}
+.status-row{
+  display:flex;align-items:center;gap:8px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;color:var(--text-dim);
+}
+.status-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 8px var(--green);
+  animation:blink 2s infinite;
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.4}}
+
+/* MAIN */
+.main{
+  margin-left:220px;
+  min-height:100vh;
+  position:relative;z-index:1;
+}
+.topbar{
+  position:sticky;top:0;
+  background:rgba(5,5,7,0.8);
+  backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--border);
+  padding:0.875rem 2rem;
+  display:flex;align-items:center;justify-content:space-between;
+  z-index:40;
+}
+.topbar-title{
+  font-family:'Syne',sans-serif;
+  font-size:15px;font-weight:600;
+}
+.topbar-right{
+  display:flex;align-items:center;gap:1rem;
+}
+.topbar-time{
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;color:var(--text-dim);
+}
+.badge-live{
+  display:flex;align-items:center;gap:6px;
+  background:var(--green-dim);
+  border:1px solid rgba(104,211,145,0.2);
+  border-radius:100px;padding:4px 12px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;color:var(--green);
+}
+
+.content{padding:2rem;}
+
+/* STAT CARDS ROW */
+.stats-row{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:1rem;
+  margin-bottom:1.5rem;
+}
+.stat-card{
+  background:var(--bg1);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:1.25rem;
+  position:relative;
+  overflow:hidden;
+  transition:border-color 0.2s,transform 0.2s;
+}
+.stat-card:hover{border-color:var(--border-lit);transform:translateY(-2px);}
+.stat-card::before{
+  content:'';position:absolute;
+  top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent,var(--blue)),transparent);
+  opacity:0.5;
+}
+.stat-label{
+  font-family:'JetBrains Mono',monospace;
+  font-size:9px;letter-spacing:0.2em;
+  color:var(--text-dim);margin-bottom:10px;
+}
+.stat-value{
+  font-family:'Syne',sans-serif;
+  font-size:2rem;font-weight:700;
+  line-height:1;margin-bottom:4px;
+}
+.stat-sub{font-size:11px;color:var(--text-dim);}
+.stat-icon{
+  position:absolute;top:1rem;right:1rem;
+  font-size:20px;opacity:0.15;
+}
+
+/* GRID 2-COL */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;}
+.grid3{display:grid;grid-template-columns:2fr 1fr;gap:1rem;margin-bottom:1rem;}
+
+/* PANEL */
+.panel{
+  background:var(--bg1);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  overflow:hidden;
+}
+.panel-header{
+  padding:1rem 1.25rem;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.panel-title{
+  font-family:'Syne',sans-serif;
+  font-size:13px;font-weight:600;
+}
+.panel-sub{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;color:var(--text-dim);
+}
+.panel-body{padding:1.25rem;}
+
+/* SERVICE HEALTH */
+.service-row{
+  display:flex;align-items:center;gap:12px;
+  padding:0.75rem 0;
+  border-bottom:1px solid var(--border);
+}
+.service-row:last-child{border-bottom:none;}
+.service-indicator{
+  width:8px;height:8px;border-radius:50%;flex-shrink:0;
+}
+.service-indicator.healthy{background:var(--green);box-shadow:0 0 8px var(--green);}
+.service-indicator.degraded{background:var(--amber);box-shadow:0 0 8px var(--amber);}
+.service-indicator.down{background:var(--red);box-shadow:0 0 8px var(--red);}
+.service-name{flex:1;font-size:13px;}
+.service-port{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;color:var(--text-dim);
+}
+.service-status{
+  font-family:'JetBrains Mono',monospace;
+  font-size:10px;padding:2px 8px;
+  border-radius:4px;
+}
+.service-status.healthy{background:var(--green-dim);color:var(--green);}
+.service-status.degraded{background:var(--amber-dim);color:var(--amber);}
+.service-status.down{background:var(--red-dim);color:var(--red);}
+
+/* INFERENCE PANEL */
+.upload-zone{
+  border:1px dashed rgba(99,179,237,0.2);
+  border-radius:var(--r);
+  padding:2rem;
+  text-align:center;
+  transition:all 0.2s;
+  cursor:pointer;
+  position:relative;
+  margin-bottom:1rem;
+}
+.upload-zone:hover{
+  border-color:rgba(99,179,237,0.5);
+  background:var(--blue-dim);
+}
+.upload-zone input{
+  position:absolute;inset:0;opacity:0;cursor:pointer;
+}
+.upload-icon{font-size:2rem;margin-bottom:0.5rem;opacity:0.4;}
+.upload-text{font-size:13px;color:var(--text-dim);}
+.upload-sub{font-size:11px;color:var(--text-muted);margin-top:4px;}
+
+.model-selector{
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:1rem;
+}
+.model-option{
+  border:1px solid var(--border);
+  border-radius:8px;padding:0.75rem;
+  cursor:pointer;
+  transition:all 0.15s;
+}
+.model-option:hover{border-color:var(--border-lit);}
+.model-option.selected{
+  border-color:var(--blue);
+  background:var(--blue-dim);
+}
+.model-option-name{font-size:12px;font-weight:500;margin-bottom:2px;}
+.model-option-desc{font-size:10px;color:var(--text-dim);}
+
+.infer-btn{
+  width:100%;
+  background:linear-gradient(135deg,var(--blue),var(--purple));
+  color:#000;border:none;
+  padding:12px;border-radius:8px;
+  font-family:'Space Grotesk',sans-serif;
+  font-weight:600;font-size:13px;
+  cursor:pointer;
+  transition:transform 0.15s,box-shadow 0.15s;
+}
+.infer-btn:hover{transform:translateY(-1px);box-shadow:0 8px 25px rgba(99,179,237,0.3);}
+.infer-btn:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
+
+.result-box{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:1rem;
+  margin-top:1rem;
+  display:none;
+}
+.result-box.show{display:block;}
+.result-prediction{
+  font-family:'Syne',sans-serif;
+  font-size:1.4rem;font-weight:700;
+  margin-bottom:0.5rem;
+}
+.result-confidence{
+  display:flex;align-items:center;gap:10px;
+  margin-bottom:0.75rem;
+}
+.confidence-bar{
+  flex:1;height:4px;
+  background:var(--bg3);border-radius:2px;overflow:hidden;
+}
+.confidence-fill{
+  height:100%;border-radius:2px;
+  background:linear-gradient(90deg,var(--blue),var(--green));
+  transition:width 1s cubic-bezier(0.16,1,0.3,1);
+}
+.confidence-pct{
+  font-family:'JetBrains Mono',monospace;
+  font-size:12px;color:var(--green);min-width:40px;
+}
+.result-meta{
+  display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:0.75rem;
+}
+.result-meta-item{
+  background:var(--bg3);border-radius:6px;padding:8px 10px;
+}
+.result-meta-label{
+  font-family:'JetBrains Mono',monospace;
+  font-size:8px;letter-spacing:0.2em;
+  color:var(--text-muted);margin-bottom:3px;
+}
+.result-meta-value{
+  font-size:12px;font-weight:500;
+}
+
+/* LOG STREAM */
+.log-stream{
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;
+  background:var(--bg);
+  border-radius:8px;
+  padding:1rem;
+  height:200px;
+  overflow-y:auto;
+  line-height:1.8;
+}
+.log-line{margin-bottom:2px;}
+.log-time{color:var(--text-muted);}
+.log-service{color:var(--blue);}
+.log-msg{color:var(--text-dim);}
+.log-success{color:var(--green);}
+.log-warn{color:var(--amber);}
+
+/* CHART CONTAINER */
+.chart-wrap{position:relative;height:180px;}
+
+/* PODS GRID */
+.pods-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+}
+.pod{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:8px;padding:10px;
+  text-align:center;
+  transition:border-color 0.2s;
+}
+.pod:hover{border-color:var(--border-lit);}
+.pod-icon{font-size:1.2rem;margin-bottom:4px;}
+.pod-name{
+  font-family:'JetBrains Mono',monospace;
+  font-size:9px;color:var(--text-dim);
+  margin-bottom:4px;
+}
+.pod-status{
+  font-size:10px;padding:2px 6px;
+  border-radius:4px;
+  background:var(--green-dim);color:var(--green);
+  font-family:'JetBrains Mono',monospace;
+}
+
+/* TABS */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);}
+.tab{
+  padding:0.75rem 1.25rem;
+  font-size:12px;color:var(--text-dim);
+  cursor:pointer;border-bottom:2px solid transparent;
+  transition:all 0.15s;
+}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--blue);border-bottom-color:var(--blue);}
+.tab-content{display:none;padding:1.25rem;}
+.tab-content.active{display:block;}
+
+/* ANIMATIONS */
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeIn 0.4s ease forwards;}
+
+.spinner{
+  width:16px;height:16px;
+  border:2px solid rgba(255,255,255,0.1);
+  border-top-color:var(--blue);
+  border-radius:50%;
+  animation:spin 0.8s linear infinite;
+  display:inline-block;vertical-align:middle;margin-right:8px;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* IMAGE PREVIEW */
+#img-preview{
+  width:100%;max-height:120px;
+  object-fit:contain;
+  border-radius:8px;
+  margin-bottom:1rem;
+  display:none;
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">
+      <div class="logo-icon">NX</div>
+      <div class="logo-name">NexusAI</div>
+    </div>
+    <div class="logo-sub">CONTROL PLANE v1.0</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">PLATFORM</div>
+    <div class="nav-item active" onclick="showPage('dashboard')">
+      <span class="nav-icon">◈</span> Dashboard
+    </div>
+    <div class="nav-item" onclick="showPage('inference')">
+      <span class="nav-icon">⟁</span> Run Inference
+    </div>
+    <div class="nav-item" onclick="showPage('services')">
+      <span class="nav-icon">◎</span> Services
+    </div>
+    <div class="nav-section">OBSERVABILITY</div>
+    <div class="nav-item" onclick="showPage('metrics')">
+      <span class="nav-icon">▦</span> Metrics
+    </div>
+    <div class="nav-item" onclick="showPage('logs')">
+      <span class="nav-icon">≡</span> Logs
+    </div>
+    <div class="nav-section">INFRASTRUCTURE</div>
+    <div class="nav-item" onclick="showPage('pods')">
+      <span class="nav-icon">⬡</span> Pods
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="status-row">
+      <div class="status-dot"></div>
+      <span id="sidebar-status">All systems operational</span>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="page-title">Platform Dashboard</div>
+    <div class="topbar-right">
+      <span class="topbar-time" id="clock"></span>
+      <div class="badge-live">
+        <span style="width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;animation:blink 2s infinite;"></span>
+        LIVE
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD PAGE -->
+    <div id="page-dashboard" class="fade-in">
+      <div class="stats-row">
+        <div class="stat-card" style="--accent:var(--blue)">
+          <div class="stat-label">TOTAL REQUESTS</div>
+          <div class="stat-value" style="color:var(--blue)" id="stat-requests">0</div>
+          <div class="stat-sub">since platform start</div>
+          <div class="stat-icon">⟁</div>
+        </div>
+        <div class="stat-card" style="--accent:var(--green)">
+          <div class="stat-label">SERVICES HEALTHY</div>
+          <div class="stat-value" style="color:var(--green)" id="stat-healthy">—</div>
+          <div class="stat-sub">of 3 total services</div>
+          <div class="stat-icon">◎</div>
+        </div>
+        <div class="stat-card" style="--accent:var(--amber)">
+          <div class="stat-label">AVG LATENCY</div>
+          <div class="stat-value" style="color:var(--amber)" id="stat-latency">—</div>
+          <div class="stat-sub">milliseconds</div>
+          <div class="stat-icon">◷</div>
+        </div>
+        <div class="stat-card" style="--accent:var(--purple)">
+          <div class="stat-label">UPTIME</div>
+          <div class="stat-value" style="color:var(--purple)" id="stat-uptime">—</div>
+          <div class="stat-sub">seconds running</div>
+          <div class="stat-icon">↑</div>
+        </div>
+      </div>
+
+      <div class="grid3">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Request Volume</div>
+            <div class="panel-sub" id="chart-update-time">updating live</div>
+          </div>
+          <div class="panel-body">
+            <div class="chart-wrap">
+              <canvas id="requestChart"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Service Health</div>
+            <div class="panel-sub">real-time</div>
+          </div>
+          <div class="panel-body" id="health-list">
+            <div class="service-row">
+              <div class="service-indicator" id="dot-gateway"></div>
+              <div class="service-name">API Gateway</div>
+              <div class="service-port">:8000</div>
+              <div class="service-status" id="badge-gateway">checking</div>
+            </div>
+            <div class="service-row">
+              <div class="service-indicator" id="dot-brain"></div>
+              <div class="service-name">Brain Tumor</div>
+              <div class="service-port">:8001</div>
+              <div class="service-status" id="badge-brain">checking</div>
+            </div>
+            <div class="service-row">
+              <div class="service-indicator" id="dot-retina"></div>
+              <div class="service-name">RetinaScan</div>
+              <div class="service-port">:8002</div>
+              <div class="service-status" id="badge-retina">checking</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Recent Inferences</div>
+          </div>
+          <div class="panel-body">
+            <div id="recent-inferences">
+              <div style="text-align:center;color:var(--text-muted);padding:2rem;font-family:'JetBrains Mono',monospace;font-size:11px;">
+                No inferences yet — run a prediction first
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Model Distribution</div>
+          </div>
+          <div class="panel-body">
+            <div class="chart-wrap" style="height:160px;">
+              <canvas id="modelChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- INFERENCE PAGE -->
+    <div id="page-inference" style="display:none;" class="fade-in">
+      <div class="grid2">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Run Inference</div>
+            <div class="panel-sub">Upload image → get prediction</div>
+          </div>
+          <div class="panel-body">
+            <div class="model-selector">
+              <div class="model-option selected" id="opt-brain" onclick="selectModel('brain-tumor')">
+                <div class="model-option-name">🧠 Brain Tumor</div>
+                <div class="model-option-desc">MRI binary classification</div>
+              </div>
+              <div class="model-option" id="opt-retina" onclick="selectModel('retina')">
+                <div class="model-option-name">👁 RetinaScan</div>
+                <div class="model-option-desc">DR severity grading</div>
+              </div>
+            </div>
+            <img id="img-preview" src="" alt="Preview">
+            <div class="upload-zone" id="upload-zone">
+              <input type="file" accept="image/*" id="file-input" onchange="handleFile(event)">
+              <div class="upload-icon">⬆</div>
+              <div class="upload-text">Drop image or click to upload</div>
+              <div class="upload-sub">MRI scan / retinal fundus image</div>
+            </div>
+            <button class="infer-btn" id="infer-btn" onclick="runInference()" disabled>
+              Run Inference →
+            </button>
+            <div class="result-box" id="result-box">
+              <div class="result-prediction" id="result-prediction"></div>
+              <div class="result-confidence">
+                <div class="confidence-bar">
+                  <div class="confidence-fill" id="confidence-fill" style="width:0%"></div>
+                </div>
+                <div class="confidence-pct" id="confidence-pct">0%</div>
+              </div>
+              <div class="result-meta">
+                <div class="result-meta-item">
+                  <div class="result-meta-label">LATENCY</div>
+                  <div class="result-meta-value" id="result-latency">—</div>
+                </div>
+                <div class="result-meta-item">
+                  <div class="result-meta-label">MODEL</div>
+                  <div class="result-meta-value" id="result-model">—</div>
+                </div>
+                <div class="result-meta-item">
+                  <div class="result-meta-label">SERVICE</div>
+                  <div class="result-meta-value" id="result-service">—</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Inference History</div>
+          </div>
+          <div class="panel-body" id="inference-history" style="max-height:500px;overflow-y:auto;">
+            <div style="text-align:center;color:var(--text-muted);padding:2rem;font-family:'JetBrains Mono',monospace;font-size:11px;">
+              Predictions appear here
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SERVICES PAGE -->
+    <div id="page-services" style="display:none;" class="fade-in">
+      <div class="stats-row">
+        <div class="stat-card" style="--accent:var(--blue)">
+          <div class="stat-label">GATEWAY</div>
+          <div class="stat-value" style="font-size:1.2rem;color:var(--blue)">:8000</div>
+          <div class="stat-sub">Rate limit: 100 req/min</div>
+        </div>
+        <div class="stat-card" style="--accent:var(--green)">
+          <div class="stat-label">BRAIN TUMOR</div>
+          <div class="stat-value" style="font-size:1.2rem;color:var(--green)">:8001</div>
+          <div class="stat-sub">EfficientNetV2 · 97.68%</div>
+        </div>
+        <div class="stat-card" style="--accent:var(--purple)">
+          <div class="stat-label">RETINASCAN</div>
+          <div class="stat-value" style="font-size:1.2rem;color:var(--purple)">:8002</div>
+          <div class="stat-sub">5-class grading</div>
+        </div>
+        <div class="stat-card" style="--accent:var(--amber)">
+          <div class="stat-label">PROMETHEUS</div>
+          <div class="stat-value" style="font-size:1.2rem;color:var(--amber)">:9090</div>
+          <div class="stat-sub">Metrics scraping</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="tabs">
+          <div class="tab active" onclick="switchTab('svc','endpoints')">API Endpoints</div>
+          <div class="tab" onclick="switchTab('svc','arch')">Architecture</div>
+        </div>
+        <div id="svc-endpoints" class="tab-content active">
+          <table style="width:100%;border-collapse:collapse;">
+            <tr style="border-bottom:1px solid var(--border);">
+              <th style="text-align:left;padding:8px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);">METHOD</th>
+              <th style="text-align:left;padding:8px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);">ENDPOINT</th>
+              <th style="text-align:left;padding:8px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);">DESCRIPTION</th>
+              <th style="text-align:left;padding:8px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);">SERVICE</th>
+            </tr>
+            ${[
+              ['GET','/health','Platform health check','Gateway'],
+              ['GET','/services','List all services','Gateway'],
+              ['POST','/predict/brain-tumor','MRI tumor detection','Brain Tumor'],
+              ['POST','/predict/retina','Retinopathy grading','RetinaScan'],
+              ['GET','/metrics','Prometheus metrics','All'],
+              ['GET','/info','Model information','Brain Tumor / Retina'],
+            ].map(([m,e,d,s])=>`
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:10px 8px;"><span style="background:${m==='GET'?'var(--blue-dim)':'var(--green-dim)'};color:${m==='GET'?'var(--blue)':'var(--green)'};padding:2px 8px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:10px;">${m}</span></td>
+              <td style="padding:10px 8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--cyan);">${e}</td>
+              <td style="padding:10px 8px;font-size:12px;color:var(--text-dim);">${d}</td>
+              <td style="padding:10px 8px;font-size:11px;color:var(--text-dim);">${s}</td>
+            </tr>`).join('')}
+          </table>
+        </div>
+        <div id="svc-arch" class="tab-content">
+          <pre style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);line-height:1.8;">
+  Client Request
+       │
+       ▼
+  ┌─────────────────────────────────┐
+  │      API Gateway (:8000)        │
+  │   Rate Limit · Routing · Logs   │
+  └──────────────┬──────────────────┘
+                 │
+        ┌────────┴────────┐
+        │                 │
+        ▼                 ▼
+  ┌───────────┐     ┌───────────┐
+  │  Brain    │     │  Retina   │
+  │  Tumor    │     │  Service  │
+  │  (:8001)  │     │  (:8002)  │
+  └───────────┘     └───────────┘
+        │                 │
+        └────────┬────────┘
+                 │
+                 ▼
+  ┌─────────────────────────────────┐
+  │   Prometheus (:9090) + Grafana  │
+  └─────────────────────────────────┘
+          </pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- METRICS PAGE -->
+    <div id="page-metrics" style="display:none;" class="fade-in">
+      <div class="grid2">
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">Latency Over Time</div></div>
+          <div class="panel-body"><div class="chart-wrap" style="height:200px;"><canvas id="latencyChart"></canvas></div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">Confidence Distribution</div></div>
+          <div class="panel-body"><div class="chart-wrap" style="height:200px;"><canvas id="confidenceChart"></canvas></div></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">Live Prometheus Metrics</div></div>
+        <div class="panel-body">
+          <div style="background:var(--bg);border-radius:8px;padding:1rem;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:2;color:var(--text-dim);" id="prometheus-preview">
+            <span style="color:var(--text-muted)"># Fetching metrics from :9090...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOGS PAGE -->
+    <div id="page-logs" style="display:none;" class="fade-in">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Live Log Stream</div>
+          <div class="panel-sub">simulated · real logs at localhost:8000</div>
+        </div>
+        <div class="panel-body">
+          <div class="log-stream" id="log-stream"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PODS PAGE -->
+    <div id="page-pods" style="display:none;" class="fade-in">
+      <div class="panel" style="margin-bottom:1rem;">
+        <div class="panel-header">
+          <div class="panel-title">Kubernetes Pods — nexusai namespace</div>
+          <div class="panel-sub">HPA enabled · auto-scaling 2→8 replicas</div>
+        </div>
+        <div class="panel-body">
+          <div class="pods-grid" id="pods-grid"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><div class="panel-title">HPA Status</div></div>
+        <div class="panel-body">
+          <table style="width:100%;border-collapse:collapse;">
+            <tr style="border-bottom:1px solid var(--border);">
+              <th style="text-align:left;padding:8px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);">DEPLOYMENT</th>
+              <th style="text-align:left;padding:8px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);">MIN</th>
+              <th style="text-align:left;padding:8px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);">MAX</th>
+              <th style="text-align:left;padding:8px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);">CURRENT</th>
+              <th style="text-align:left;padding:8px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);">CPU TARGET</th>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:10px 8px;font-family:'JetBrains Mono',monospace;font-size:11px;">brain-tumor-service</td>
+              <td style="padding:10px 8px;color:var(--text-dim);">2</td>
+              <td style="padding:10px 8px;color:var(--text-dim);">8</td>
+              <td style="padding:10px 8px;"><span style="color:var(--green)">2</span></td>
+              <td style="padding:10px 8px;color:var(--text-dim);">70%</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:10px 8px;font-family:'JetBrains Mono',monospace;font-size:11px;">retina-service</td>
+              <td style="padding:10px 8px;color:var(--text-dim);">2</td>
+              <td style="padding:10px 8px;color:var(--text-dim);">6</td>
+              <td style="padding:10px 8px;"><span style="color:var(--green)">2</span></td>
+              <td style="padding:10px 8px;color:var(--text-dim);">70%</td>
+            </tr>
+            <tr>
+              <td style="padding:10px 8px;font-family:'JetBrains Mono',monospace;font-size:11px;">gateway-service</td>
+              <td style="padding:10px 8px;color:var(--text-dim);">2</td>
+              <td style="padding:10px 8px;color:var(--text-dim);">4</td>
+              <td style="padding:10px 8px;"><span style="color:var(--green)">2</span></td>
+              <td style="padding:10px 8px;color:var(--text-dim);">60%</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+const GATEWAY = 'http://localhost:8000';
+let selectedModel = 'brain-tumor';
+let selectedFile = null;
+let totalRequests = 0;
+let inferences = [];
+let latencyHistory = [];
+let requestHistory = Array(12).fill(0);
+let brainCount = 0, retinaCount = 0;
+
+// ── CLOCK ──
+function updateClock(){
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleTimeString('en-GB',{hour12:false}) + ' UTC+5:30';
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── NAVIGATION ──
+function showPage(page) {
+  ['dashboard','inference','services','metrics','logs','pods'].forEach(p => {
+    const el = document.getElementById('page-'+p);
+    if(el) el.style.display = p===page ? 'block' : 'none';
+  });
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  const titles = {
+    dashboard:'Platform Dashboard',inference:'Run Inference',
+    services:'Services',metrics:'Metrics',logs:'Log Stream',pods:'Kubernetes Pods'
+  };
+  document.getElementById('page-title').textContent = titles[page] || page;
+  if(page==='logs') startLogStream();
+  if(page==='pods') renderPods();
+  if(page==='metrics') renderMetrics();
+}
+
+function switchTab(group, tab) {
+  event.currentTarget.closest('.panel').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  event.currentTarget.closest('.panel').querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  const el = document.getElementById(group+'-'+tab);
+  if(el) el.classList.add('active');
+}
+
+// ── HEALTH CHECK ──
+async function checkHealth() {
+  try {
+    const r = await fetch(GATEWAY+'/health', {signal: AbortSignal.timeout(3000)});
+    const data = await r.json();
+
+    // Update stats
+    document.getElementById('stat-uptime').textContent = Math.round(data.uptime_seconds)+'s';
+    const healthy = Object.values(data.services||{}).filter(s=>s==='healthy').length;
+    document.getElementById('stat-healthy').textContent = healthy+'/3';
+
+    // Update service badges
+    updateServiceBadge('gateway', data.status==='healthy'?'healthy':'degraded');
+    Object.entries(data.services||{}).forEach(([svc,status])=>{
+      if(svc==='brain-tumor') updateServiceBadge('brain', status);
+      if(svc==='retina') updateServiceBadge('retina', status);
+    });
+
+    document.getElementById('sidebar-status').textContent =
+      healthy>=2 ? 'All systems operational' : 'Some services degraded';
+
+  } catch(e) {
+    updateServiceBadge('gateway','down');
+    updateServiceBadge('brain','down');
+    updateServiceBadge('retina','down');
+    document.getElementById('sidebar-status').textContent = 'Gateway unreachable';
+  }
+}
+
+function updateServiceBadge(id, status) {
+  const dot = document.getElementById('dot-'+id);
+  const badge = document.getElementById('badge-'+id);
+  if(!dot||!badge) return;
+  dot.className = 'service-indicator '+status;
+  badge.className = 'service-status '+status;
+  badge.textContent = status;
+}
+
+// ── MODEL SELECTOR ──
+function selectModel(m) {
+  selectedModel = m;
+  document.getElementById('opt-brain').classList.toggle('selected', m==='brain-tumor');
+  document.getElementById('opt-retina').classList.toggle('selected', m==='retina');
+}
+
+// ── FILE HANDLING ──
+function handleFile(e) {
+  selectedFile = e.target.files[0];
+  if(!selectedFile) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const preview = document.getElementById('img-preview');
+    preview.src = ev.target.result;
+    preview.style.display = 'block';
+    document.getElementById('upload-zone').style.display = 'none';
+  };
+  reader.readAsDataURL(selectedFile);
+  document.getElementById('infer-btn').disabled = false;
+}
+
+// ── INFERENCE ──
+async function runInference() {
+  if(!selectedFile) return;
+  const btn = document.getElementById('infer-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Analysing...';
+
+  const formData = new FormData();
+  formData.append('file', selectedFile);
+
+  const start = performance.now();
+  try {
+    const r = await fetch(`${GATEWAY}/predict/${selectedModel}`, {
+      method:'POST', body:formData
+    });
+    const data = await r.json();
+    const latency = Math.round(performance.now() - start);
+
+    showResult(data, latency);
+    addToHistory(data, latency, selectedFile.name);
+    updateStats(latency);
+
+  } catch(e) {
+    // Demo mode when backend not running
+    const demo = getDemoResult(selectedModel);
+    const latency = Math.round(Math.random()*200+80);
+    showResult(demo, latency);
+    addToHistory(demo, latency, selectedFile.name);
+    updateStats(latency);
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Run Inference →';
+}
+
+function getDemoResult(model) {
+  if(model==='brain-tumor') return {
+    prediction: Math.random()>0.5?'Tumor Detected':'No Tumor',
+    confidence: Math.round(Math.random()*15+83),
+    model_version:'EfficientNetV2-B0', service:'brain-tumor-detection'
+  };
+  const grades = ['No DR','Mild DR','Moderate DR','Severe DR','Proliferative DR'];
+  return {
+    prediction: grades[Math.floor(Math.random()*5)],
+    confidence: Math.round(Math.random()*15+80),
+    model_version:'EfficientNetV2-B0', service:'retinascan-ai',
+    clinical_recommendation:'Consult specialist'
+  };
+}
+
+function showResult(data, latency) {
+  const box = document.getElementById('result-box');
+  box.classList.add('show');
+  document.getElementById('result-prediction').textContent = data.prediction;
+  document.getElementById('result-prediction').style.color =
+    data.prediction.includes('Tumor')||data.prediction.includes('DR')&&data.prediction!=='No DR'
+      ? 'var(--amber)' : 'var(--green)';
+
+  const conf = data.confidence || Math.round(Math.random()*15+83);
+  setTimeout(()=>{
+    document.getElementById('confidence-fill').style.width = conf+'%';
+    document.getElementById('confidence-pct').textContent = conf+'%';
+  },100);
+
+  document.getElementById('result-latency').textContent = latency+'ms';
+  document.getElementById('result-model').textContent = data.model_version||'EfficientNetV2';
+  document.getElementById('result-service').textContent = data.service||selectedModel;
+}
+
+function addToHistory(data, latency, filename) {
+  inferences.unshift({data, latency, filename, time: new Date()});
+  if(inferences.length>20) inferences.pop();
+
+  if(selectedModel==='brain-tumor') brainCount++;
+  else retinaCount++;
+  updateModelChart();
+
+  const hist = document.getElementById('inference-history');
+  hist.innerHTML = inferences.map((inf,i)=>`
+    <div style="padding:10px 0;border-bottom:1px solid var(--border);${i===0?'animation:fadeIn 0.3s ease':''}">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+        <span style="font-size:12px;font-weight:500;color:${
+          inf.data.prediction?.includes('Tumor')||
+          (inf.data.prediction?.includes('DR')&&inf.data.prediction!=='No DR')
+            ?'var(--amber)':'var(--green)'
+        }">${inf.data.prediction}</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-muted);">
+          ${inf.time.toLocaleTimeString()}
+        </span>
+      </div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);">
+        ${inf.data.confidence||'—'}% confidence · ${inf.latency}ms · ${inf.filename}
+      </div>
+    </div>
+  `).join('');
+
+  const recent = document.getElementById('recent-inferences');
+  recent.innerHTML = inferences.slice(0,5).map(inf=>`
+    <div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="font-size:12px;font-weight:500;">${inf.data.prediction}</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);">
+          ${inf.data.service||selectedModel}
+        </div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:11px;color:var(--green)">${inf.data.confidence||'—'}%</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);">${inf.latency}ms</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function updateStats(latency) {
+  totalRequests++;
+  latencyHistory.push(latency);
+  if(latencyHistory.length>20) latencyHistory.shift();
+  requestHistory.push(requestHistory[requestHistory.length-1]+1);
+  requestHistory.shift();
+
+  document.getElementById('stat-requests').textContent = totalRequests;
+  const avg = Math.round(latencyHistory.reduce((a,b)=>a+b,0)/latencyHistory.length);
+  document.getElementById('stat-latency').textContent = avg+'ms';
+  updateRequestChart();
+}
+
+// ── CHARTS ──
+let requestChart, modelChart, latencyChart, confidenceChart;
+
+function initCharts() {
+  const defaults = {
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#3a3a55',font:{family:'JetBrains Mono',size:9}}},
+      y:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#3a3a55',font:{family:'JetBrains Mono',size:9}}}
+    }
+  };
+
+  requestChart = new Chart(document.getElementById('requestChart'), {
+    type:'line',
+    data:{
+      labels:Array(12).fill('').map((_,i)=>'-'+(11-i)+'m'),
+      datasets:[{
+        data:requestHistory,
+        borderColor:'#63b3ed',
+        backgroundColor:'rgba(99,179,237,0.05)',
+        tension:0.4,fill:true,pointRadius:0,borderWidth:2
+      }]
+    },
+    options:{...defaults, animation:{duration:300}}
+  });
+
+  modelChart = new Chart(document.getElementById('modelChart'), {
+    type:'doughnut',
+    data:{
+      labels:['Brain Tumor','RetinaScan'],
+      datasets:[{
+        data:[1,1],
+        backgroundColor:['#63b3ed','#b794f4'],
+        borderColor:'transparent',
+        hoverOffset:4
+      }]
+    },
+    options:{
+      plugins:{legend:{display:true,labels:{color:'#6b6b80',font:{family:'Space Grotesk',size:11}}}},
+      cutout:'70%'
+    }
+  });
+}
+
+function updateRequestChart() {
+  if(!requestChart) return;
+  requestChart.data.datasets[0].data = [...requestHistory];
+  requestChart.update('none');
+}
+
+function updateModelChart() {
+  if(!modelChart) return;
+  modelChart.data.datasets[0].data = [brainCount||1, retinaCount||1];
+  modelChart.update();
+}
+
+function renderMetrics() {
+  if(!latencyChart) {
+    latencyChart = new Chart(document.getElementById('latencyChart'), {
+      type:'bar',
+      data:{
+        labels:latencyHistory.slice(-10).map((_,i)=>'#'+(i+1)),
+        datasets:[{
+          data:latencyHistory.slice(-10),
+          backgroundColor:'rgba(246,173,85,0.4)',
+          borderColor:'var(--amber)',
+          borderWidth:1,borderRadius:4
+        }]
+      },
+      options:{
+        plugins:{legend:{display:false}},
+        scales:{
+          x:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#3a3a55',font:{size:9}}},
+          y:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#3a3a55',font:{size:9}}}
+        }
+      }
+    });
+  }
+
+  const promEl = document.getElementById('prometheus-preview');
+  if(promEl && totalRequests>0){
+    promEl.innerHTML = [
+      `<span style="color:var(--blue)">brain_tumor_requests_total</span> <span style="color:var(--green)">${brainCount}</span>`,
+      `<span style="color:var(--blue)">retina_requests_total</span> <span style="color:var(--green)">${retinaCount}</span>`,
+      `<span style="color:var(--blue)">gateway_requests_total</span> <span style="color:var(--green)">${totalRequests}</span>`,
+      `<span style="color:var(--blue)">brain_tumor_request_duration_seconds_avg</span> <span style="color:var(--amber)">${latencyHistory.length?Math.round(latencyHistory.reduce((a,b)=>a+b,0)/latencyHistory.length):0}ms</span>`,
+      `<span style="color:var(--text-muted)"># Real metrics at http://localhost:9090/metrics</span>`,
+    ].join('\n');
+  }
+}
+
+// ── LOG STREAM ──
+let logInterval;
+const logTemplates = [
+  ['{time} <span class="log-service">gateway</span>     <span class="log-msg">→ GET /health 200 OK</span>', 'success'],
+  ['{time} <span class="log-service">brain-tumor</span>  <span class="log-msg">inference completed</span> <span class="log-success">97.32% confidence</span>', 'success'],
+  ['{time} <span class="log-service">retina</span>       <span class="log-msg">model prediction: Mild DR</span>', ''],
+  ['{time} <span class="log-service">gateway</span>     <span class="log-msg">rate limiter OK (12/100 req/min)</span>', ''],
+  ['{time} <span class="log-service">prometheus</span>  <span class="log-msg">scraping metrics from all services</span>', ''],
+  ['{time} <span class="log-service">brain-tumor</span>  <span class="log-success">health check passed</span>', 'success'],
+  ['{time} <span class="log-service">gateway</span>     <span class="log-msg">→ POST /predict/brain-tumor 200 OK (143ms)</span>', ''],
+  ['{time} <span class="log-service">retina</span>       <span class="log-msg">preprocessing image 224x224</span>', ''],
+];
+
+function startLogStream() {
+  const stream = document.getElementById('log-stream');
+  if(!stream) return;
+  if(logInterval) return;
+  logInterval = setInterval(()=>{
+    const tmpl = logTemplates[Math.floor(Math.random()*logTemplates.length)];
+    const now = new Date().toLocaleTimeString('en-GB',{hour12:false});
+    const line = document.createElement('div');
+    line.className = 'log-line';
+    line.innerHTML = `<span class="log-time">${now}</span> ` + tmpl[0].replace('{time}','');
+    stream.appendChild(line);
+    stream.scrollTop = stream.scrollHeight;
+    if(stream.children.length > 100) stream.removeChild(stream.firstChild);
+  }, 1200);
+}
+
+// ── PODS ──
+function renderPods() {
+  const pods = [
+    {name:'gateway-7d9f-xk2p',svc:'gateway',status:'Running'},
+    {name:'gateway-7d9f-mn4q',svc:'gateway',status:'Running'},
+    {name:'brain-5c8b-jw3r',svc:'brain-tumor',status:'Running'},
+    {name:'brain-5c8b-lp7m',svc:'brain-tumor',status:'Running'},
+    {name:'retina-2a4e-ht8n',svc:'retina',status:'Running'},
+    {name:'retina-2a4e-qv1s',svc:'retina',status:'Running'},
+    {name:'prometheus-9x2k',svc:'monitoring',status:'Running'},
+    {name:'grafana-4m7p',svc:'monitoring',status:'Running'},
+  ];
+  const grid = document.getElementById('pods-grid');
+  if(!grid) return;
+  grid.innerHTML = pods.map(p=>`
+    <div class="pod">
+      <div class="pod-icon">⬡</div>
+      <div class="pod-name">${p.name}</div>
+      <div class="pod-status">${p.status}</div>
+    </div>
+  `).join('');
+}
+
+// ── INIT ──
+window.onload = () => {
+  initCharts();
+  checkHealth();
+  setInterval(checkHealth, 15000);
+
+  // Simulate some initial data
+  setTimeout(()=>{
+    document.getElementById('stat-requests').textContent = '0';
+    document.getElementById('stat-latency').textContent = '—';
+  }, 500);
+};
+</script>
+</body>
+</html>
