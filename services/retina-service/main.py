@@ -32,7 +32,7 @@ app = FastAPI(
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 MODEL = None
-MODEL_PATH = os.getenv("MODEL_PATH", "model/retina_model.h5")
+MODEL_PATH = os.getenv("MODEL_PATH", "model/best_retina_model.keras")
 IMG_SIZE = (224, 224)
 CLASSES = ["No DR", "Mild DR", "Moderate DR", "Severe DR", "Proliferative DR"]
 SERVICE_START_TIME = datetime.utcnow()

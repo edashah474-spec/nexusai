@@ -58,7 +58,7 @@ app.add_middleware(
 
 # ── MODEL LOADING ──
 MODEL = None
-MODEL_PATH = os.getenv("MODEL_PATH", "model/brain_tumor_model.h5")
+MODEL_PATH = os.getenv("MODEL_PATH", "model/best_model.keras")
 IMG_SIZE = (224, 224)
 CLASSES = ["No Tumor", "Tumor Detected"]
 SERVICE_START_TIME = datetime.utcnow()
